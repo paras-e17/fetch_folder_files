@@ -42,7 +42,7 @@ class FetchFolderFilesPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, P
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
     when (call.method) {
       "fetch_files" -> {
-        val path = call.argument<String>("path")
+        val path = call.argument<String>("path")?.removePrefix("/")
         try {
           fetchAllStatus(context, path) { documentFiles ->
             result.success(documentFiles.map { file ->
@@ -71,16 +71,16 @@ class FetchFolderFilesPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, P
     GlobalScope.launch(Dispatchers.IO) {
       // Step 1: Fetch the document files based on WhatsApp type and permissions
       Log.d("StatusSaver", "[${getFormattedTime()}] Starting to fetch WhatsApp statuses...")
+
       var PATH_DIRECTORY_FILE = File(
-        Environment.getExternalStorageDirectory()
-          .toString() + File.separator + path
+        context.getExternalFilesDir(null)?.parent + File.separator + path
       )
 
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         Log.d("StatusSaver", "[${getFormattedTime()}] Using Android 11+ (API 30+) approach")
         val listUriPermission = context.contentResolver.persistedUriPermissions
         documentFiles = listUriPermission.firstOrNull {
-          it.uri.path?.contains(PATH_DIRECTORY_FILE.absolutePath) == true
+          it.uri.path?.contains(PATH_DIRECTORY_FILE.path) == true
         }?.let { uriItem ->
           DocumentFile.fromTreeUri(context, uriItem.uri)
         }
