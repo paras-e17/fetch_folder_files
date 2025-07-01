@@ -32,6 +32,7 @@ class FetchFolderFilesPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, P
   private lateinit var channel : MethodChannel
   private lateinit var context: Context
   private var activity: Activity? = null
+  private var folderPath: String? = null
 
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "fetch_folder_files")
@@ -42,9 +43,9 @@ class FetchFolderFilesPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, P
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
     when (call.method) {
       "fetch_files" -> {
-        val path = call.argument<String>("path")?.removePrefix("/")
+        folderPath = call.argument<String>("path")?.removePrefix("/")
         try {
-          fetchAllStatus(context, path) { documentFiles ->
+          fetchAllStatus(context) { documentFiles ->
             result.success(documentFiles.map { file ->
               file.uri.toString()
             })
@@ -65,29 +66,26 @@ class FetchFolderFilesPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, P
   }
 
   @OptIn(DelicateCoroutinesApi::class)
-  fun fetchAllStatus(context: Context, path: String?, callback: (ArrayList<DocumentFile>) -> Unit) {
+  fun fetchAllStatus(context: Context, callback: (ArrayList<DocumentFile>) -> Unit) {
     var documentFiles: DocumentFile?
 
     GlobalScope.launch(Dispatchers.IO) {
       // Step 1: Fetch the document files based on WhatsApp type and permissions
       Log.d("StatusSaver", "[${getFormattedTime()}] Starting to fetch WhatsApp statuses...")
 
-      var PATH_DIRECTORY_FILE = File(
-        context.getExternalFilesDir(null)?.parent + File.separator + path
-      )
-
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         Log.d("StatusSaver", "[${getFormattedTime()}] Using Android 11+ (API 30+) approach")
+        Log.d("StatusSaver", "[${getFormattedTime()}] Folder Path => $folderPath")
         val listUriPermission = context.contentResolver.persistedUriPermissions
         documentFiles = listUriPermission.firstOrNull {
-          it.uri.path?.contains(PATH_DIRECTORY_FILE.path) == true
+          it.uri.path?.contains("$folderPath") == true
         }?.let { uriItem ->
           DocumentFile.fromTreeUri(context, uriItem.uri)
         }
         Log.d("StatusSaver", "[${getFormattedTime()}] Document files found: ${documentFiles != null}")
       } else {
         Log.d("StatusSaver", "[${getFormattedTime()}] Using legacy approach for Android < 11")
-        val selectedFile: File = PATH_DIRECTORY_FILE
+        val selectedFile: File = WHATSAPP_DIRECTORY_FILE_NEW
         documentFiles = selectedFile.let { DocumentFile.fromFile(it) }
         Log.d("StatusSaver", "[${getFormattedTime()}] Document files found: ${documentFiles != null}")
       }
@@ -108,9 +106,7 @@ class FetchFolderFilesPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, P
       val sortedFiles = sortedFilesJob.await()
       Log.d("StatusSaver", "[${getFormattedTime()}] Finished sorting files. Total files found: ${sortedFiles.size}")
 
-      withContext(Dispatchers.Main) {
-        callback(ArrayList(sortedFiles))
-      }
+      callback(ArrayList(sortedFiles))
       Log.d("StatusSaver", "[${getFormattedTime()}] Successfully completed fetching all statuses")
 //            // Directly pass the document files without processing
 //            val files = documentFiles?.listFiles()?.toList() ?: emptyList()
@@ -118,6 +114,13 @@ class FetchFolderFilesPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, P
 //            Log.d("StatusSaver", "Successfully completed fetching all statuses. Total files: ${files.size}")
     }
   }
+
+  private var WHATSAPP_DIRECTORY_NEW = "$folderPath"
+
+  private var WHATSAPP_DIRECTORY_FILE_NEW = File(
+    Environment.getExternalStorageDirectory()
+      .toString() + File.separator + WHATSAPP_DIRECTORY_NEW
+  )
 
   private suspend fun sortDocumentFiles(documentDirectory: DocumentFile?): List<DocumentFile> {
     val metadataReadTasks: List<Deferred<DocumentFileWithMetadata>> =

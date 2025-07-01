@@ -28,9 +28,13 @@ class _MyAppState extends State<MyApp> {
       // For Android, this might be /storage/emulated/0/Download
       // For iOS, this might be the Documents directory
       String folderPath =
-          "/Android/media/com.whatsapp/WhatsApp/Media/.Statuses";
+          // "/Android/media/com.whatsapp/WhatsApp/Media/.Statuses";
+          "/Pictures/Instagram";
 
-      final files = await FetchFolderFiles.getFiles(path: folderPath);
+      final files = await FetchFolderFiles.getFiles(
+        path: folderPath,
+        fileType: FileType.all,
+      );
       setState(() {
         _files = files;
         _isLoading = false;
