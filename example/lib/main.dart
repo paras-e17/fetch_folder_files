@@ -25,12 +25,10 @@ class _MyAppState extends State<MyApp> {
 
     try {
       // Using a common path - you can modify this based on your needs
-      // For Android, this might be /storage/emulated/0/Download
+      // For Android, this might be storage/emulated/0/Download
       // For iOS, this might be the Documents directory
-      String folderPath =
-          // "/Android/media/com.whatsapp/WhatsApp/Media/.Statuses";
-          "/Pictures/Instagram";
-
+      String folderPath = "Android/media/com.whatsapp/WhatsApp/Media/.Statuses";
+      // String folderPath = "Pictures/Instagram";
       final files = await FetchFolderFiles.getFiles(
         path: folderPath,
         fileType: FileType.all,
@@ -45,6 +43,12 @@ class _MyAppState extends State<MyApp> {
         _isLoading = false;
       });
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchFiles();
   }
 
   @override
@@ -166,9 +170,11 @@ class _MyAppState extends State<MyApp> {
             if (_files.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'Found ${_files.length} files',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                child: SafeArea(
+                  child: Text(
+                    'Found ${_files.length} files',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                  ),
                 ),
               ),
           ],
